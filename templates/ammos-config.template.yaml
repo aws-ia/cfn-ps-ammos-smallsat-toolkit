@@ -1,0 +1,94 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: (qs-1s6abjf87)
+Parameters:
+  QSS3BucketName:
+    AllowedPattern: ^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$
+    ConstraintDescription: Quick Start bucket name can include numbers, lowercase
+      letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen
+      (-).
+    Default: aws-quickstart
+    Description: S3 bucket name for the Quick Start assets. This string can include
+      numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start
+      or end with a hyphen (-).
+    Type: String
+  QSS3KeyPrefix:
+    AllowedPattern: ^[0-9a-zA-Z-/]*$
+    ConstraintDescription: Quick Start key prefix can include numbers, lowercase letters,
+      uppercase letters, hyphens (-), and forward slash (/).
+    Default: quickstart-ammos-smallsat-toolkit/
+    Description: S3 key prefix for the Quick Start assets. Quick Start key prefix
+      can include numbers, lowercase letters, uppercase letters, hyphens (-), and
+      forward slash (/).
+    Type: String
+  QSS3BucketRegion:
+    Default: 'us-east-1'
+    Description: The AWS Region where the Quick Start S3 bucket (QSS3BucketName) is hosted. When using your own bucket, you must specify this value.
+    Type: String
+  ProjectName:
+    Description: Name of your project
+    Type: String
+  RolePath:
+    Description: Will be attached to all created IAM Roles to satisfy security requirements.
+    Type: String
+    Default: ''
+  PermissionsBoundaryArn:
+    Description: Will be attached to all created IAM Roles to satisfy security requirements.
+    Type: String
+    Default: ''
+  IamRoleArn:
+    Description: ARN of a pre-deployed IAM Role with sufficient permissions for the lambda;
+      see the CopyRole resource in the copy-zips template for reference
+    Type: String
+    Default: ''
+Conditions:
+  UsingDefaultBucket: !Equals [!Ref QSS3BucketName, "aws-quickstart"]
+Resources:
+  ConfigBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Sub ${ProjectName}-config
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Retain
+  CopyZipsStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub
+        - https://${S3Bucket}.s3.${S3Region}.${AWS::URLSuffix}/${QSS3KeyPrefix}submodules/lambda-copyzips/templates/copy-zips.template.yaml
+        - S3Region:
+            !If [UsingDefaultBucket, !Ref "AWS::Region", !Ref QSS3BucketRegion]
+          S3Bucket:
+            !If [
+              UsingDefaultBucket,
+              !Sub "${QSS3BucketName}-${AWS::Region}",
+              !Ref QSS3BucketName,
+            ]
+      Parameters:
+        DestinationBucket: !Ref ConfigBucket
+        QSS3BucketName: !Ref "QSS3BucketName"
+        QSS3KeyPrefix: !Ref "QSS3KeyPrefix"
+        StripPrefixAtDestination: 'true'
+        PermissionsBoundaryArn: !Ref PermissionsBoundaryArn
+        RolePath: !Ref RolePath
+        IamRoleArn: !Ref IamRoleArn
+        SourceObjects: !Join
+          - ','
+          - - configs/ait/ait-config.zip
+            - configs/ait/cloudwatch-agent-ait.json
+            - configs/ait/config/bsc.yaml
+            - configs/ait/config/ccsds_header.yaml
+            - configs/ait/config/cmd.yaml
+            - configs/ait/config/config.yaml
+            - configs/ait/config/core_set_op_mode.yaml
+            - configs/ait/config/evr.yaml
+            - configs/ait/config/leapseconds.dat
+            - configs/ait/config/limits.yaml
+            - configs/ait/config/table.yaml
+            - configs/ait/config/tlm.yaml
+            - configs/ait/httpd_proxy.conf
+            - configs/editor/cloudwatch-agent-editor.json
+            - configs/modules/openmct-static.tgz
+Outputs:
+  ConfigBucket:
+    Export:
+      Name: !Sub "${ProjectName}-ConfigBucketName"
+    Value: !Ref ConfigBucket

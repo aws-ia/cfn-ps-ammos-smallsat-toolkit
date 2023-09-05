@@ -1,0 +1,301 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: (qs-1s6abjf80)
+Parameters:
+  ProjectName:
+    Description: Name of your project
+    Type: String
+  CloudWatchLogsRetentionPeriod:
+    Description: The number of days to retain log events in CloudWatch log groups
+    Type: Number
+    Default: 30
+  IamRoleArn:
+    Description: ARN of the pre-deployed IAM Role to use with the AIT Server
+    Type: String
+    Default: ''
+  VPCID:
+    Type: AWS::EC2::VPC::Id
+    Description: The ID of your existing VPC.
+  PrivateSubnet1ID:
+    Type: AWS::EC2::Subnet::Id
+    Description: The ID of the private subnet in Availability Zone 1 in your existing VPC.
+  PrivateSubnet2ID:
+    Type: AWS::EC2::Subnet::Id
+    Description: The ID of the private subnet in Availability Zone 2 in your existing VPC.
+  PrivateSubnet3ID:
+    Type: AWS::EC2::Subnet::Id
+    Description: The ID of the private subnet in Availability Zone 3 in your existing VPC.
+  QSS3BucketName:
+    AllowedPattern: ^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$
+    ConstraintDescription: Quick Start bucket name can include numbers, lowercase
+      letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen
+      (-).
+    Default: aws-quickstart
+    Description: S3 bucket name for the Quick Start assets. This string can include
+      numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start
+      or end with a hyphen (-).
+    Type: String
+  QSS3KeyPrefix:
+    AllowedPattern: ^[0-9a-zA-Z-/]*$
+    ConstraintDescription: Quick Start key prefix can include numbers, lowercase letters,
+      uppercase letters, hyphens (-), and forward slash (/).
+    Default: quickstart-ammos-smallsat-toolkit/
+    Description: S3 key prefix for the Quick Start assets. Quick Start key prefix
+      can include numbers, lowercase letters, uppercase letters, hyphens (-), and
+      forward slash (/).
+    Type: String
+Conditions:
+  UsingDefaultBucket: !Equals [!Ref QSS3BucketName, 'aws-quickstart']
+Resources:
+  ElasticsearchSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      VpcId: !Ref VPCID
+      GroupDescription: Security group for access to AMMOS Cubs Elasticsearch domain.
+
+  ElasticsearchSecurityGroupIngress:
+    Type: AWS::EC2::SecurityGroupIngress
+    Properties:
+      GroupId: !GetAtt ElasticsearchSecurityGroup.GroupId
+      IpProtocol: tcp
+      FromPort: 443
+      ToPort: 443
+      SourceSecurityGroupId: !GetAtt ElasticsearchSecurityGroup.GroupId
+
+  ElasticsearchDomain:
+    Type: AWS::Elasticsearch::Domain
+    Properties:
+      DomainName: !Sub '${ProjectName}-logs'
+      ElasticsearchVersion: "7.10"
+      ElasticsearchClusterConfig:
+        DedicatedMasterCount: 3
+        DedicatedMasterEnabled: true
+        DedicatedMasterType: t3.medium.elasticsearch
+        InstanceType: t3.medium.elasticsearch
+        InstanceCount: 2
+        ZoneAwarenessEnabled: true
+      EBSOptions:
+        EBSEnabled: true
+        VolumeSize: 10
+        VolumeType: gp2
+      AdvancedOptions:
+        rest.action.multi.allow_explicit_index: "true"
+      EncryptionAtRestOptions:
+        Enabled: true
+      NodeToNodeEncryptionOptions:
+        Enabled: true
+      DomainEndpointOptions:
+        EnforceHTTPS: true
+        TLSSecurityPolicy: Policy-Min-TLS-1-2-2019-07
+      VPCOptions:
+        SubnetIds:
+          - !Ref PrivateSubnet1ID
+          - !Ref PrivateSubnet2ID
+        SecurityGroupIds:
+          - !GetAtt ElasticsearchSecurityGroup.GroupId
+      AccessPolicies:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: "*"
+            Action:
+              - es:AcceptInboundCrossClusterSearchConnection
+              - es:AddTags
+              - es:AssociatePackage
+              - es:CreateElasticsearchDomain
+              - es:CreateElasticsearchServiceRole
+              - es:CreateOutboundCrossClusterSearchConnection
+              - es:CreatePackage
+              - es:DeleteElasticsearchDomain
+              - es:DeleteElasticsearchServiceRole
+              - es:DeleteInboundCrossClusterSearchConnection
+              - es:DeleteOutboundCrossClusterSearchConnection
+              - es:DeletePackage
+              - es:DescribeElasticsearchDomain
+              - es:DescribeElasticsearchDomainConfig
+              - es:DescribeElasticsearchDomains
+              - es:DescribeElasticsearchInstanceTypeLimits
+              - es:DescribeInboundCrossClusterSearchConnections
+              - es:DescribeOutboundCrossClusterSearchConnections
+              - es:DescribePackages
+              - es:DescribeReservedElasticsearchInstanceOfferings
+              - es:DescribeReservedElasticsearchInstances
+              - es:DissociatePackage
+              - es:ESCrossClusterGet
+              - es:ESHttpDelete
+              - es:ESHttpGet
+              - es:ESHttpHead
+              - es:ESHttpPatch
+              - es:ESHttpPost
+              - es:ESHttpPut
+              - es:GetCompatibleElasticsearchVersions
+              - es:GetPackageVersionHistory
+              - es:GetUpgradeHistory
+              - es:GetUpgradeStatus
+              - es:ListDomainNames
+              - es:ListDomainsForPackage
+              - es:ListElasticsearchInstanceTypeDetails
+              - es:ListElasticsearchInstanceTypes
+              - es:ListElasticsearchVersions
+              - es:ListPackagesForDomain
+              - es:ListTags
+              - es:PurchaseReservedElasticsearchInstanceOffering
+              - es:RejectInboundCrossClusterSearchConnection
+              - es:RemoveTags
+              - es:UpdateElasticsearchDomainConfig
+              - es:UpdatePackage
+              - es:UpgradeElasticsearchDomain
+            Resource: !Sub arn:${AWS::Partition}:es:${AWS::Region}:${AWS::AccountId}:domain/${ProjectName}-logs/*
+  AitEditorAgentLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /${ProjectName}/cloudwatch-agent/ait-editor/agent
+      RetentionInDays: !Ref CloudWatchLogsRetentionPeriod
+  AitEditorSyslogLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /${ProjectName}/cloudwatch-agent/ait-editor/syslog
+      RetentionInDays: !Ref CloudWatchLogsRetentionPeriod
+  AitServerAgentLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /${ProjectName}/cloudwatch-agent/ait-server/agent
+      RetentionInDays: !Ref CloudWatchLogsRetentionPeriod
+  AitServerSyslogLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /${ProjectName}/cloudwatch-agent/ait-server/syslog
+      RetentionInDays: !Ref CloudWatchLogsRetentionPeriod
+  LoggingBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Delete
+    Properties:
+      BucketName: !Sub ${ProjectName}-logs
+  FirehoseLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub /${ProjectName}/kinesisfirehose/logging-firehose
+      RetentionInDays: !Ref CloudWatchLogsRetentionPeriod
+
+  ElasticsearchDeliveryLogStream:
+    Type: AWS::Logs::LogStream
+    Properties:
+      LogGroupName: !Ref FirehoseLogGroup
+      LogStreamName: elasticsearch-delivery
+
+  S3DeliveryLogStream:
+    Type: AWS::Logs::LogStream
+    Properties:
+      LogGroupName: !Ref FirehoseLogGroup
+      LogStreamName: s3-delivery
+
+  LogKinesisDeliveryStream:
+    Type: AWS::KinesisFirehose::DeliveryStream
+    Properties:
+      DeliveryStreamName: !Sub ${ProjectName}-DeliveryStream
+      DeliveryStreamType: DirectPut
+      ElasticsearchDestinationConfiguration:
+        ProcessingConfiguration:
+          Enabled: true
+          Processors:
+            - Type: Lambda
+              Parameters:
+                - ParameterName: LambdaArn
+                  ParameterValue: !GetAtt LoggingProcessorLambda.Arn
+                - ParameterName: BufferSizeInMBs
+                  ParameterValue: "3"
+                - ParameterName: BufferIntervalInSeconds
+                  ParameterValue: "60"
+        CloudWatchLoggingOptions:
+          Enabled: true
+          LogGroupName: !Ref FirehoseLogGroup
+          LogStreamName: !Ref ElasticsearchDeliveryLogStream
+        BufferingHints:
+          IntervalInSeconds: 300
+          SizeInMBs: 5
+        DomainARN: !GetAtt ElasticsearchDomain.Arn
+        IndexName: cloudwatch-logs
+        IndexRotationPeriod: OneDay
+        RetryOptions:
+          DurationInSeconds: 300
+        RoleARN: !Ref IamRoleArn
+        S3BackupMode: AllDocuments
+        S3Configuration:
+          CompressionFormat: UNCOMPRESSED
+          BucketARN: !GetAtt LoggingBucket.Arn
+          CloudWatchLoggingOptions:
+            Enabled: true
+            LogGroupName: !Ref FirehoseLogGroup
+            LogStreamName: !Ref S3DeliveryLogStream
+          BufferingHints:
+            IntervalInSeconds: 300
+            SizeInMBs: 5
+          RoleARN: !Ref IamRoleArn
+        VpcConfiguration:
+          RoleARN: !Ref IamRoleArn
+          SecurityGroupIds:
+            - !GetAtt ElasticsearchSecurityGroup.GroupId
+          SubnetIds:
+            - !Ref PrivateSubnet1ID
+            - !Ref PrivateSubnet2ID
+            - !Ref PrivateSubnet3ID
+
+  AitEditorAgentSubscriptionFilter:
+    Type: AWS::Logs::SubscriptionFilter
+    Properties:
+      RoleArn: !Ref IamRoleArn
+      LogGroupName: !Ref AitEditorAgentLogGroup
+      DestinationArn: !GetAtt LogKinesisDeliveryStream.Arn
+      FilterPattern: ""
+
+  AitEditorSyslogSubscriptionFilter:
+    Type: AWS::Logs::SubscriptionFilter
+    Properties:
+      RoleArn: !Ref IamRoleArn
+      LogGroupName: !Ref AitEditorSyslogLogGroup
+      DestinationArn: !GetAtt LogKinesisDeliveryStream.Arn
+      FilterPattern: ""
+
+  AitServerAgentSubscriptionFilter:
+    Type: AWS::Logs::SubscriptionFilter
+    Properties:
+      RoleArn: !Ref IamRoleArn
+      LogGroupName: !Ref AitServerAgentLogGroup
+      DestinationArn: !GetAtt LogKinesisDeliveryStream.Arn
+      FilterPattern: ""
+
+  AitServerSyslogSubscriptionFilter:
+    Type: AWS::Logs::SubscriptionFilter
+    Properties:
+      RoleArn: !Ref IamRoleArn
+      LogGroupName: !Ref AitServerSyslogLogGroup
+      DestinationArn: !GetAtt LogKinesisDeliveryStream.Arn
+      FilterPattern: ""
+
+  LoggingProcessorLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "${ProjectName}-LoggingProcessor"
+      Description: An Amazon Kinesis Firehose stream processor that extracts individual log events from records sent by Cloudwatch Logs subscription filters.
+      Handler: index.handler
+      Role: !Ref IamRoleArn
+      Runtime: nodejs12.x
+      Timeout: 60
+      VpcConfig:
+        SecurityGroupIds:
+          - !GetAtt ElasticsearchSecurityGroup.GroupId
+        SubnetIds:
+          - !Ref PrivateSubnet1ID
+          - !Ref PrivateSubnet2ID
+          - !Ref PrivateSubnet3ID
+      Code:
+        S3Bucket: !If
+          - UsingDefaultBucket
+          - !Sub '${QSS3BucketName}-${AWS::Region}'
+          - !Ref QSS3BucketName
+        S3Key: !Sub "${QSS3KeyPrefix}functions/packages/LoggingProcessorLambda/lambda.zip"
+
+Outputs:
+  LoggingBucketName:
+    Description: Name of the S3 Bucket where CloudWatch logs will be uploaded
+    Value: !Ref LoggingBucket
