@@ -9,3 +9,6 @@
 	path = submodules/cfn-ps-linux-bastion
 	url = git@github.com:aws-ia/cfn-ps-linux-bastion.git
 	branch = main
+[submodule "lambda-copyzips"]
+	path = lambda-copyzips
+	url = git@github.com:aws-ia/lambda-copyzips.git
