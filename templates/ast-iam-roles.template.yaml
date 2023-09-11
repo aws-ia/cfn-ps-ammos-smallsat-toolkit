@@ -14,35 +14,34 @@ Parameters:
     Default: ''
   QSS3BucketName:
     AllowedPattern: ^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$
-    ConstraintDescription: Quick Start bucket name can include numbers, lowercase
-      letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen
-      (-).
+    ConstraintDescription: Quick Start bucket name can include numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen (-).
     Default: aws-ia-us-east-1
-    Description: Name of the S3 bucket for your copy of the Quick Start assets.
-      Keep the default name unless you are customizing the template.
-      Changing the name updates code references to point to a new Quick
-      Start location. This name can include numbers, lowercase letters,
-      uppercase letters, and hyphens, but do not start or end with a hyphen (-).
-      See https://aws-quickstart.github.io/option1.html.
+    Description: Name of the S3 bucket for your copy of the Quick Start assets. Keep the default name unless you are customizing the template. Changing the name updates code references to point to a new
+      Quick Start location. This name can include numbers, lowercase letters, uppercase letters, and hyphens, but do not start or end with a hyphen (-). See https://aws-quickstart.github.io/option1.html.
     Type: String
   QSS3KeyPrefix:
     AllowedPattern: ^[0-9a-zA-Z-/]*$
-    ConstraintDescription: The Quick Start S3 key prefix can include numbers, lowercase letters,
-      uppercase letters, hyphens (-), and forward slashes (/). The prefix should
-      end with a forward slash (/).
+    ConstraintDescription: The Quick Start S3 key prefix can include numbers, lowercase letters, uppercase letters, hyphens (-), and forward slashes (/). The prefix should end with a forward slash (/).
     Default: cfn-ps-ammos-smallsat-toolkit/
-    Description: S3 key prefix that is used to simulate a directory for your copy of the
-      Quick Start assets. Keep the default prefix unless you are customizing
-      the template. Changing this prefix updates code references to point to
-      a new Quick Start location. This prefix can include numbers, lowercase
-      letters, uppercase letters, hyphens (-), and forward slashes (/). End with
-      a forward slash. See https://docs.aws.amazon.com/AmazonS3/latest/dev/UsingMetadata.html
+    Description: S3 key prefix that is used to simulate a directory for your copy of the Quick Start assets. Keep the default prefix unless you are customizing the template. Changing this prefix updates
+      code references to point to a new Quick Start location. This prefix can include numbers, lowercase letters, uppercase letters, hyphens (-), and forward slashes (/). End with a forward slash. See https://docs.aws.amazon.com/AmazonS3/latest/dev/UsingMetadata.html
       and https://aws-quickstart.github.io/option1.html.
     Type: String
 Conditions:
-  RolePathProvided: !Not [!Equals ['', !Ref RolePath]]
-  PermissionsBoundaryProvided: !Not [!Equals ['', !Ref PermissionsBoundaryArn]]
-  UsingDefaultBucket: !Equals [!Ref QSS3BucketName, 'aws-ia-us-east-1']
+  RolePathProvided:
+    Fn::Not:
+      - Fn::Equals:
+          - ''
+          - Ref: RolePath
+  PermissionsBoundaryProvided:
+    Fn::Not:
+      - Fn::Equals:
+          - ''
+          - Ref: PermissionsBoundaryArn
+  UsingDefaultBucket:
+    Fn::Equals:
+      - Ref: QSS3BucketName
+      - aws-ia-us-east-1
 Resources:
   LoggingLambdaRole:
     Metadata:
@@ -54,7 +53,8 @@ Resources:
             - EIAMPolicyWildcardResource: False positive
     Type: AWS::IAM::Role
     Properties:
-      RoleName: !Sub '${ProjectName}-LoggingLambdaRole'
+      RoleName:
+        Fn::Sub: ${ProjectName}-LoggingLambdaRole
       Description: Grants permissions on various logging sources and destinations
       AssumeRolePolicyDocument:
         Version: 2012-10-17
@@ -67,9 +67,16 @@ Resources:
                 - firehose.amazonaws.com
             Action:
               - sts:AssumeRole
-      Path: !If [RolePathProvided, !Ref RolePath, !Ref AWS::NoValue]
+      Path:
+        Fn::If:
+          - RolePathProvided
+          - Ref: RolePath
+          - Ref: AWS::NoValue
       PermissionsBoundary:
-        !If [PermissionsBoundaryProvided, !Ref PermissionsBoundaryArn, !Ref AWS::NoValue]
+        Fn::If:
+          - PermissionsBoundaryProvided
+          - Ref: PermissionsBoundaryArn
+          - Ref: AWS::NoValue
       Policies:
         - PolicyName: cloudwatch-firehose
           PolicyDocument:
@@ -89,7 +96,7 @@ Resources:
                   - firehose:UntagDeliveryStream
                   - firehose:UpdateDestination
                 Resource:
-                  - !Sub arn:${AWS::Partition}:firehose:${AWS::Region}:${AWS::AccountId}:deliverystream/${ProjectName}-DeliveryStream
+                  - Fn::Sub: arn:${AWS::Partition}:firehose:${AWS::Region}:${AWS::AccountId}:deliverystream/${ProjectName}-DeliveryStream
         - PolicyName: firehose-s3
           PolicyDocument:
             Statement:
@@ -102,8 +109,8 @@ Resources:
                   - s3:ListBucketMultipartUploads
                   - s3:PutObject
                 Resource:
-                  - !Sub arn:${AWS::Partition}:s3:::${ProjectName}-LogsBucket
-                  - !Sub arn:${AWS::Partition}:s3:::${ProjectName}-LogsBucket/*
+                  - Fn::Sub: arn:${AWS::Partition}:s3:::${ProjectName}-LogsBucket
+                  - Fn::Sub: arn:${AWS::Partition}:s3:::${ProjectName}-LogsBucket/*
         - PolicyName: firehose-ec2
           PolicyDocument:
             Statement:
@@ -129,8 +136,8 @@ Resources:
                   - es:ESHttpPost
                   - es:ESHttpPut
                 Resource:
-                  - !Sub arn:${AWS::Partition}:es:${AWS::Region}:${AWS::AccountId}:domain/${ProjectName}-logs
-                  - !Sub arn:${AWS::Partition}:es:${AWS::Region}:${AWS::AccountId}:domain/${ProjectName}-logs/*
+                  - Fn::Sub: arn:${AWS::Partition}:es:${AWS::Region}:${AWS::AccountId}:domain/${ProjectName}-logs
+                  - Fn::Sub: arn:${AWS::Partition}:es:${AWS::Region}:${AWS::AccountId}:domain/${ProjectName}-logs/*
         - PolicyName: firehose-cloudwatch-errors
           PolicyDocument:
             Statement:
@@ -138,7 +145,7 @@ Resources:
                 Action:
                   - logs:PutLogEvents
                 Resource:
-                  - !Sub arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/${ProjectName}/kinesisfirehose/logging-firehose:*
+                  - Fn::Sub: arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/${ProjectName}/kinesisfirehose/logging-firehose:*
         - PolicyName: firehose-lambda-transform
           PolicyDocument:
             Statement:
@@ -147,13 +154,14 @@ Resources:
                   - lambda:InvokeFunction
                   - lambda:GetFunctionConfiguration
                 Resource:
-                  - !Sub 'arn:${AWS::Partition}:lambda:${AWS::Region}:${AWS::AccountId}:function:${ProjectName}-LoggingProcessor'
+                  - Fn::Sub: arn:${AWS::Partition}:lambda:${AWS::Region}:${AWS::AccountId}:function:${ProjectName}-LoggingProcessor
       ManagedPolicyArns:
-        - !Sub arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
+        - Fn::Sub: arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
   AitServerRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: !Sub '${ProjectName}-AitServerRole'
+      RoleName:
+        Fn::Sub: ${ProjectName}-AitServerRole
       Description: IAM Role to be used by the AIT Application Server
       AssumeRolePolicyDocument:
         Statement:
@@ -163,18 +171,26 @@ Resources:
               Service: ec2.amazonaws.com
         Version: '2012-10-17'
       ManagedPolicyArns:
-        - !Sub 'arn:${AWS::Partition}:iam::aws:policy/CloudWatchAgentServerPolicy'
-        - !Sub 'arn:${AWS::Partition}:iam::aws:policy/AmazonSSMManagedInstanceCore'
-      Path: !If [RolePathProvided, !Ref RolePath, !Ref AWS::NoValue]
+        - Fn::Sub: arn:${AWS::Partition}:iam::aws:policy/CloudWatchAgentServerPolicy
+        - Fn::Sub: arn:${AWS::Partition}:iam::aws:policy/AmazonSSMManagedInstanceCore
+      Path:
+        Fn::If:
+          - RolePathProvided
+          - Ref: RolePath
+          - Ref: AWS::NoValue
       PermissionsBoundary:
-        !If [PermissionsBoundaryProvided, !Ref PermissionsBoundaryArn, !Ref AWS::NoValue]
+        Fn::If:
+          - PermissionsBoundaryProvided
+          - Ref: PermissionsBoundaryArn
+          - Ref: AWS::NoValue
       Policies:
         - PolicyName: ec2-ait-server
           PolicyDocument:
             Statement:
               - Action: cloudformation:SignalResource
                 Effect: Allow
-                Resource: !Sub arn:${AWS::Partition}:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/${AWS::StackName}/*
+                Resource:
+                  Fn::Sub: arn:${AWS::Partition}:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/${AWS::StackName}/*
               - Action:
                   - s3:GetBucketAcl
                   - s3:GetBucketLocation
@@ -185,19 +201,25 @@ Resources:
                   - s3:ListBucket
                 Effect: Allow
                 Resource:
-                  - !Sub 'arn:${AWS::Partition}:s3:::${ProjectName}-config'
-                  - !Sub 'arn:${AWS::Partition}:s3:::${ProjectName}-config/*'
+                  - Fn::Sub: arn:${AWS::Partition}:s3:::${ProjectName}-config
+                  - Fn::Sub: arn:${AWS::Partition}:s3:::${ProjectName}-config/*
               - Action:
-                  - 's3:GetObject'
+                  - s3:GetObject
                   - s3:ListBucket
-                Resource: !Sub
-                  - arn:${AWS::Partition}:s3:::${S3Bucket}/${QSS3KeyPrefix}*
-                  - S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
+                Resource:
+                  Fn::Sub:
+                    - arn:${AWS::Partition}:s3:::${S3Bucket}/${QSS3KeyPrefix}*
+                    - S3Bucket:
+                        Fn::If:
+                          - UsingDefaultBucket
+                          - Fn::Sub: ${QSS3BucketName}-${AWS::Region}
+                          - Ref: QSS3BucketName
                 Effect: Allow
   EditorServerRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: !Sub '${ProjectName}-EditorServerRole'
+      RoleName:
+        Fn::Sub: ${ProjectName}-EditorServerRole
       Description: IAM Role to be used by the Editor Application Server
       AssumeRolePolicyDocument:
         Statement:
@@ -207,18 +229,26 @@ Resources:
               Service: ec2.amazonaws.com
         Version: '2012-10-17'
       ManagedPolicyArns:
-        - !Sub 'arn:${AWS::Partition}:iam::aws:policy/CloudWatchAgentServerPolicy'
-        - !Sub 'arn:${AWS::Partition}:iam::aws:policy/AmazonSSMManagedInstanceCore'
-      Path: !If [RolePathProvided, !Ref RolePath, !Ref AWS::NoValue]
+        - Fn::Sub: arn:${AWS::Partition}:iam::aws:policy/CloudWatchAgentServerPolicy
+        - Fn::Sub: arn:${AWS::Partition}:iam::aws:policy/AmazonSSMManagedInstanceCore
+      Path:
+        Fn::If:
+          - RolePathProvided
+          - Ref: RolePath
+          - Ref: AWS::NoValue
       PermissionsBoundary:
-        !If [PermissionsBoundaryProvided, !Ref PermissionsBoundaryArn, !Ref AWS::NoValue]
+        Fn::If:
+          - PermissionsBoundaryProvided
+          - Ref: PermissionsBoundaryArn
+          - Ref: AWS::NoValue
       Policies:
         - PolicyName: ec2-editor-server
           PolicyDocument:
             Statement:
               - Action: cloudformation:SignalResource
                 Effect: Allow
-                Resource: !Sub arn:${AWS::Partition}:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/${AWS::StackName}/*
+                Resource:
+                  Fn::Sub: arn:${AWS::Partition}:cloudformation:${AWS::Region}:${AWS::AccountId}:stack/${AWS::StackName}/*
               - Action:
                   - s3:GetBucketAcl
                   - s3:GetBucketLocation
@@ -229,53 +259,77 @@ Resources:
                   - s3:ListBucket
                 Effect: Allow
                 Resource:
-                  - !Sub 'arn:${AWS::Partition}:s3:::${ProjectName}-config'
-                  - !Sub 'arn:${AWS::Partition}:s3:::${ProjectName}-config/*'
+                  - Fn::Sub: arn:${AWS::Partition}:s3:::${ProjectName}-config
+                  - Fn::Sub: arn:${AWS::Partition}:s3:::${ProjectName}-config/*
               - Action:
-                  - 's3:GetObject'
+                  - s3:GetObject
                   - s3:ListBucket
-                Resource: !Sub
-                  - arn:${AWS::Partition}:s3:::${S3Bucket}/${QSS3KeyPrefix}*
-                  - S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
+                Resource:
+                  Fn::Sub:
+                    - arn:${AWS::Partition}:s3:::${S3Bucket}/${QSS3KeyPrefix}*
+                    - S3Bucket:
+                        Fn::If:
+                          - UsingDefaultBucket
+                          - Fn::Sub: ${QSS3BucketName}-${AWS::Region}
+                          - Ref: QSS3BucketName
                 Effect: Allow
   CognitoInspectRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: !Sub ${ProjectName}-CognitoInspectRole
+      RoleName:
+        Fn::Sub: ${ProjectName}-CognitoInspectRole
       AssumeRolePolicyDocument:
         Statement:
           - Action: sts:AssumeRole
             Effect: Allow
             Principal:
               Service: lambda.amazonaws.com
-        Version: "2012-10-17"
+        Version: '2012-10-17'
       ManagedPolicyArns:
-        - !Sub "arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
-      Path: !If [RolePathProvided, !Ref RolePath, !Ref AWS::NoValue]
-      PermissionsBoundary:  !If [PermissionsBoundaryProvided, !Ref PermissionsBoundaryArn, !Ref AWS::NoValue]
+        - Fn::Sub: arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Path:
+        Fn::If:
+          - RolePathProvided
+          - Ref: RolePath
+          - Ref: AWS::NoValue
+      PermissionsBoundary:
+        Fn::If:
+          - PermissionsBoundaryProvided
+          - Ref: PermissionsBoundaryArn
+          - Ref: AWS::NoValue
       Policies:
         - PolicyDocument:
             Statement:
               - Action: cognito-idp:DescribeUserPoolClient
                 Effect: Allow
-                Resource: !Sub arn:${AWS::Partition}:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/*
-            Version: "2012-10-17"
+                Resource:
+                  Fn::Sub: arn:${AWS::Partition}:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/*
+            Version: '2012-10-17'
           PolicyName: cognito-client-describe
   DeploymentHelperRole:
     Type: AWS::IAM::Role
     Properties:
-      RoleName: !Sub ${ProjectName}-DeploymentHelperRole
+      RoleName:
+        Fn::Sub: ${ProjectName}-DeploymentHelperRole
       AssumeRolePolicyDocument:
         Statement:
           - Action: sts:AssumeRole
             Effect: Allow
             Principal:
               Service: lambda.amazonaws.com
-        Version: "2012-10-17"
+        Version: '2012-10-17'
       ManagedPolicyArns:
-        - !Sub "arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
-      Path: !If [RolePathProvided, !Ref RolePath, !Ref AWS::NoValue]
-      PermissionsBoundary:  !If [PermissionsBoundaryProvided, !Ref PermissionsBoundaryArn, !Ref AWS::NoValue]
+        - Fn::Sub: arn:${AWS::Partition}:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Path:
+        Fn::If:
+          - RolePathProvided
+          - Ref: RolePath
+          - Ref: AWS::NoValue
+      PermissionsBoundary:
+        Fn::If:
+          - PermissionsBoundaryProvided
+          - Ref: PermissionsBoundaryArn
+          - Ref: AWS::NoValue
       Policies:
         - PolicyDocument:
             Statement:
@@ -283,191 +337,246 @@ Resources:
                 Effect: Allow
                 Resource:
                   Fn::Join:
-                   - ""
-                   - - !Sub arn:${AWS::Partition}:iam::${AWS::AccountId}:role
-                     - !If [RolePathProvided, !Ref RolePath, /]
-                     - !Sub ${ProjectName}
-                     - "-*"
-            Version: "2012-10-17"
+                    - ''
+                    - - Fn::Sub: arn:${AWS::Partition}:iam::${AWS::AccountId}:role
+                      - Fn::If:
+                          - RolePathProvided
+                          - Ref: RolePath
+                          - /
+                      - Fn::Sub: ${ProjectName}
+                      - -*
+            Version: '2012-10-17'
           PolicyName: role-checker
   BastionHostRole:
-    Type: 'AWS::IAM::Role'
+    Type: AWS::IAM::Role
     Properties:
-      RoleName: !Sub ${ProjectName}-BastionHostRole
-      Path: !If [RolePathProvided, !Ref RolePath, !Ref AWS::NoValue]
+      RoleName:
+        Fn::Sub: ${ProjectName}-BastionHostRole
+      Path:
+        Fn::If:
+          - RolePathProvided
+          - Ref: RolePath
+          - Ref: AWS::NoValue
       PermissionsBoundary:
-        !If [
-          PermissionsBoundaryProvided,
-          !Ref PermissionsBoundaryArn,
-          !Ref AWS::NoValue,
-        ]
+        Fn::If:
+          - PermissionsBoundaryProvided
+          - Ref: PermissionsBoundaryArn
+          - Ref: AWS::NoValue
       AssumeRolePolicyDocument:
         Statement:
           - Action:
-              - 'sts:AssumeRole'
+              - sts:AssumeRole
             Principal:
               Service:
-                - !Sub 'ec2.${AWS::URLSuffix}'
+                - Fn::Sub: ec2.${AWS::URLSuffix}
             Effect: Allow
         Version: 2012-10-17
       Policies:
-      - PolicyName: BastionPolicy
-        PolicyDocument:
-          Version: 2012-10-17
-          Statement:
-          - Sid: GetAssetsS3
-            Action:
-              - 's3:GetObject'
-            Resource: !Sub
-              - arn:${AWS::Partition}:s3:::${S3Bucket}/${QSS3KeyPrefix}*
-              - S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
-            Effect: Allow
-          - Sid: Logging
-            Action:
-              - 'logs:CreateLogStream'
-              - 'logs:GetLogEvents'
-              - 'logs:PutLogEvents'
-              - 'logs:DescribeLogGroups'
-              - 'logs:DescribeLogStreams'
-              - 'logs:PutRetentionPolicy'
-              - 'logs:PutMetricFilter'
-              - 'logs:CreateLogGroup'
-            Resource: '*'
-            Effect: Allow
-          - Sid: DescribeAddress
-            Action:
-              - 'ec2:DescribeAddresses'
-            Resource: '*'
-            Effect: Allow
-          - Sid: AssociateAddress
-            Effect: Allow
-            Action:
-              - 'ec2:AssociateAddress'
-            Resource: '*'
+        - PolicyName: BastionPolicy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Sid: GetAssetsS3
+                Action:
+                  - s3:GetObject
+                Resource:
+                  Fn::Sub:
+                    - arn:${AWS::Partition}:s3:::${S3Bucket}/${QSS3KeyPrefix}*
+                    - S3Bucket:
+                        Fn::If:
+                          - UsingDefaultBucket
+                          - Fn::Sub: ${QSS3BucketName}-${AWS::Region}
+                          - Ref: QSS3BucketName
+                Effect: Allow
+              - Sid: Logging
+                Action:
+                  - logs:CreateLogStream
+                  - logs:GetLogEvents
+                  - logs:PutLogEvents
+                  - logs:DescribeLogGroups
+                  - logs:DescribeLogStreams
+                  - logs:PutRetentionPolicy
+                  - logs:PutMetricFilter
+                  - logs:CreateLogGroup
+                Resource: '*'
+                Effect: Allow
+              - Sid: DescribeAddress
+                Action:
+                  - ec2:DescribeAddresses
+                Resource: '*'
+                Effect: Allow
+              - Sid: AssociateAddress
+                Effect: Allow
+                Action:
+                  - ec2:AssociateAddress
+                Resource: '*'
       ManagedPolicyArns:
-        - !Sub 'arn:${AWS::Partition}:iam::aws:policy/AmazonSSMManagedInstanceCore'
-        - !Sub 'arn:${AWS::Partition}:iam::aws:policy/CloudWatchAgentServerPolicy'
+        - Fn::Sub: arn:${AWS::Partition}:iam::aws:policy/AmazonSSMManagedInstanceCore
+        - Fn::Sub: arn:${AWS::Partition}:iam::aws:policy/CloudWatchAgentServerPolicy
+    Metadata:
+      cfn-lint:
+        config:
+          ignore_checks:
+            - EIAMPolicyWildcardResource
+          ignore_reasons:
+            - EIAMPolicyWildcardResource: Intent assumed for initial migration.
   CopyZipsRole:
     Type: AWS::IAM::Role
     Properties:
-      Path: !If [RolePathProvided, !Ref RolePath, !Ref AWS::NoValue]
+      Path:
+        Fn::If:
+          - RolePathProvided
+          - Ref: RolePath
+          - Ref: AWS::NoValue
       PermissionsBoundary:
-        !If [
-          PermissionsBoundaryProvided,
-          !Ref PermissionsBoundaryArn,
-          !Ref AWS::NoValue,
-        ]
+        Fn::If:
+          - PermissionsBoundaryProvided
+          - Ref: PermissionsBoundaryArn
+          - Ref: AWS::NoValue
       AssumeRolePolicyDocument:
         Version: 2012-10-17
         Statement:
-        - Effect: Allow
-          Principal:
-            Service: lambda.amazonaws.com
-          Action: sts:AssumeRole
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
       Policies:
-      - PolicyName: ConfigPolicy
-        PolicyDocument:
-          Version: 2012-10-17
-          Statement:
-          - Sid: Logging
-            Effect: Allow
-            Action:
-              - logs:StartQuery
-              - logs:DeleteLogGroup
-              - logs:CreateLogStream
-              - logs:DisassociateKmsKey
-              - logs:StopQuery
-              - logs:UntagLogGroup
-              - logs:PutResourcePolicy
-              - logs:GetLogGroupFields
-              - logs:GetLogDelivery
-              - logs:TagLogGroup
-              - logs:DeleteRetentionPolicy
-              - logs:PutQueryDefinition
-              - logs:UpdateLogDelivery
-              - logs:FilterLogEvents
-              - logs:PutRetentionPolicy
-              - logs:PutMetricFilter
-              - logs:DescribeQueryDefinitions
-              - logs:PutDestination
-              - logs:GetLogRecord
-              - logs:PutLogEvents
-              - logs:ListLogDeliveries
-              - logs:DescribeExportTasks
-              - logs:DescribeLogStreams
-              - logs:CreateLogGroup
-              - logs:DeleteMetricFilter
-              - logs:CancelExportTask
-              - logs:DescribeMetricFilters
-              - logs:DeleteSubscriptionFilter
-              - logs:DescribeResourcePolicies
-              - logs:DescribeSubscriptionFilters
-              - logs:GetQueryResults
-              - logs:DeleteQueryDefinition
-              - logs:DeleteResourcePolicy
-              - logs:DeleteLogStream
-              - logs:CreateExportTask
-              - logs:DeleteLogDelivery
-              - logs:DescribeLogGroups
-              - logs:CreateLogDelivery
-              - logs:PutDestinationPolicy
-              - logs:GetLogEvents
-              - logs:DescribeQueries
-              - logs:DescribeDestinations
-              - logs:PutSubscriptionFilter
-              - logs:DeleteDestination
-              - logs:TestMetricFilter
-              - logs:ListTagsLogGroup
-            Resource: !Sub arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:*
-          - Sid: S3Get
-            Effect: Allow
-            Action:
-            - s3:GetObject
-            Resource: !Sub
-              - arn:${AWS::Partition}:s3:::${S3Bucket}/${QSS3KeyPrefix}*
-              - S3Bucket: !If [UsingDefaultBucket, !Sub '${QSS3BucketName}-${AWS::Region}', !Ref QSS3BucketName]
-          - Sid: S3Put
-            Effect: Allow
-            Action:
-            - s3:PutObject
-            - s3:DeleteObject
-            Resource: !Sub
-            - arn:${AWS::Partition}:s3:::${DestBucket}/*
-            - DestBucket: !Sub ${ProjectName}-config
-
+        - PolicyName: ConfigPolicy
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              - Sid: Logging
+                Effect: Allow
+                Action:
+                  - logs:StartQuery
+                  - logs:DeleteLogGroup
+                  - logs:CreateLogStream
+                  - logs:DisassociateKmsKey
+                  - logs:StopQuery
+                  - logs:UntagLogGroup
+                  - logs:PutResourcePolicy
+                  - logs:GetLogGroupFields
+                  - logs:GetLogDelivery
+                  - logs:TagLogGroup
+                  - logs:DeleteRetentionPolicy
+                  - logs:PutQueryDefinition
+                  - logs:UpdateLogDelivery
+                  - logs:FilterLogEvents
+                  - logs:PutRetentionPolicy
+                  - logs:PutMetricFilter
+                  - logs:DescribeQueryDefinitions
+                  - logs:PutDestination
+                  - logs:GetLogRecord
+                  - logs:PutLogEvents
+                  - logs:ListLogDeliveries
+                  - logs:DescribeExportTasks
+                  - logs:DescribeLogStreams
+                  - logs:CreateLogGroup
+                  - logs:DeleteMetricFilter
+                  - logs:CancelExportTask
+                  - logs:DescribeMetricFilters
+                  - logs:DeleteSubscriptionFilter
+                  - logs:DescribeResourcePolicies
+                  - logs:DescribeSubscriptionFilters
+                  - logs:GetQueryResults
+                  - logs:DeleteQueryDefinition
+                  - logs:DeleteResourcePolicy
+                  - logs:DeleteLogStream
+                  - logs:CreateExportTask
+                  - logs:DeleteLogDelivery
+                  - logs:DescribeLogGroups
+                  - logs:CreateLogDelivery
+                  - logs:PutDestinationPolicy
+                  - logs:GetLogEvents
+                  - logs:DescribeQueries
+                  - logs:DescribeDestinations
+                  - logs:PutSubscriptionFilter
+                  - logs:DeleteDestination
+                  - logs:TestMetricFilter
+                  - logs:ListTagsLogGroup
+                Resource:
+                  Fn::Sub: arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:*
+              - Sid: S3Get
+                Effect: Allow
+                Action:
+                  - s3:GetObject
+                Resource:
+                  Fn::Sub:
+                    - arn:${AWS::Partition}:s3:::${S3Bucket}/${QSS3KeyPrefix}*
+                    - S3Bucket:
+                        Fn::If:
+                          - UsingDefaultBucket
+                          - Fn::Sub: ${QSS3BucketName}-${AWS::Region}
+                          - Ref: QSS3BucketName
+              - Sid: S3Put
+                Effect: Allow
+                Action:
+                  - s3:PutObject
+                  - s3:DeleteObject
+                Resource:
+                  Fn::Sub:
+                    - arn:${AWS::Partition}:s3:::${DestBucket}/*
+                    - DestBucket:
+                        Fn::Sub: ${ProjectName}-config
 Outputs:
   DeploymentHelperRoleArn:
     Export:
-      Name: !Sub ${ProjectName}-DeploymentHelperRoleArn
+      Name:
+        Fn::Sub: ${ProjectName}-DeploymentHelperRoleArn
     Description: ARN of the LoggingLambdaRole created for AST deployment
-    Value: !GetAtt DeploymentHelperRole.Arn
+    Value:
+      Fn::GetAtt:
+        - DeploymentHelperRole
+        - Arn
   LoggingLambdaRoleArn:
     Description: ARN of the LoggingLambdaRole created for AST deployment
-    Value: !GetAtt LoggingLambdaRole.Arn
+    Value:
+      Fn::GetAtt:
+        - LoggingLambdaRole
+        - Arn
   CognitoInspectRoleArn:
     Description: ARN of the CognitoInspectRole created for AST deployment
-    Value: !GetAtt CognitoInspectRole.Arn
+    Value:
+      Fn::GetAtt:
+        - CognitoInspectRole
+        - Arn
   AitServerRoleArn:
     Description: ARN of the AitServerRole created for AST deployment
-    Value: !GetAtt AitServerRole.Arn
+    Value:
+      Fn::GetAtt:
+        - AitServerRole
+        - Arn
   AitServerRoleName:
     Description: Name of the AitServerRole created for AST deployment
-    Value: !Ref AitServerRole
+    Value:
+      Ref: AitServerRole
   EditorServerRoleArn:
     Description: ARN of the EditorServerRole created for AST deployment
-    Value: !GetAtt EditorServerRole.Arn
+    Value:
+      Fn::GetAtt:
+        - EditorServerRole
+        - Arn
   EditorServerRoleName:
     Description: Name of the EditorServerRole created for AST deployment
-    Value: !Ref EditorServerRole
+    Value:
+      Ref: EditorServerRole
   BastionHostRoleArn:
     Description: ARN of the BastionHostRole created for AST deployment
-    Value: !GetAtt BastionHostRole.Arn
+    Value:
+      Fn::GetAtt:
+        - BastionHostRole
+        - Arn
   BastionHostRoleName:
     Description: Name of the BastionHostRole created for AST deployment
-    Value: !Ref BastionHostRole
+    Value:
+      Ref: BastionHostRole
   CopyZipsRoleArn:
     Description: ARN of the CopyZipsRole created for AST deployment
-    Value: !GetAtt CopyZipsRole.Arn
+    Value:
+      Fn::GetAtt:
+        - CopyZipsRole
+        - Arn
   CopyZipsRoleName:
     Description: Name of the CopyZipsRole created for AST deployment
-    Value: !Ref CopyZipsRole
+    Value:
+      Ref: CopyZipsRole
