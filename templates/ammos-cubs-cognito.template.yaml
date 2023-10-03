@@ -1,0 +1,89 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Cognito resources for an AMMOS Cubs Deployment (qs-1s6abjf7e)
+Parameters:
+  QSS3BucketName:
+    AllowedPattern: ^[0-9a-zA-Z]+([0-9a-zA-Z-]*[0-9a-zA-Z])*$
+    ConstraintDescription: Quick Start bucket name can include numbers, lowercase
+      letters, uppercase letters, and hyphens (-). It cannot start or end with a hyphen
+      (-).
+    Default: aws-ia-us-east-1
+    Description: S3 bucket name for the Quick Start assets. This string can include
+      numbers, lowercase letters, uppercase letters, and hyphens (-). It cannot start
+      or end with a hyphen (-).
+    Type: String
+  QSS3KeyPrefix:
+    AllowedPattern: ^[0-9a-zA-Z-/]*$
+    ConstraintDescription: Quick Start key prefix can include numbers, lowercase letters,
+      uppercase letters, hyphens (-), and forward slash (/).
+    Default: cfn-ps-ammos-smallsat-toolkit/
+    Description: S3 key prefix for the Quick Start assets. Quick Start key prefix
+      can include numbers, lowercase letters, uppercase letters, hyphens (-), and
+      forward slash (/).
+    Type: String
+  ProjectName:
+    Description: Name of your project
+    Type: String
+  IamRoleArn:
+    Description: ARN of the pre-deployed IAM Role to use with the AIT Server
+    Type: String
+    Default: ''
+
+Conditions:
+  UsingDefaultBucket: !Equals [!Ref QSS3BucketName, 'aws-ia-us-east-1']
+
+Resources:
+  CognitoClientInspectionFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Code:
+        S3Bucket: !If
+          - UsingDefaultBucket
+          - !Sub '${QSS3BucketName}-${AWS::Region}'
+          - !Ref QSS3BucketName
+        S3Key: !Sub '${QSS3KeyPrefix}functions/packages/CognitoClientInspect/lambda.zip'
+      Handler: cfn_cognito_inspect.lambda_handler
+      Role: !Ref IamRoleArn
+      Runtime: python3.8
+  UserPool:
+    Metadata:
+      cfn-lint:
+        config:
+          ignore_checks:
+            - ECognitoUserPoolMfaConfiguration
+    Type: AWS::Cognito::UserPool
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Retain
+    Properties:
+      AccountRecoverySetting:
+        RecoveryMechanisms:
+          - Name: verified_email
+            Priority: 1
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: true
+      EmailVerificationMessage: The verification code to your new account is {####}
+      EmailVerificationSubject: Verify your new account
+      SmsVerificationMessage: The verification code to your new account is {####}
+      UserPoolName: !Sub "${ProjectName}-users"
+      VerificationMessageTemplate:
+        DefaultEmailOption: CONFIRM_WITH_CODE
+        EmailMessage: The verification code to your new account is {####}
+        EmailSubject: Verify your new account
+        SmsMessage: The verification code to your new account is {####}
+  UserPoolCognitoDomain:
+    Type: AWS::Cognito::UserPoolDomain
+    Properties:
+      Domain: !Ref ProjectName
+      UserPoolId: !Ref UserPool
+Outputs:
+  CognitoInspectFunctionArn:
+    Description: ARN of the Lambda function to serve as a custom resource inspecting cognito clients
+    Value: !GetAtt CognitoClientInspectionFunction.Arn
+  CognitoDomainName:
+    Description: Domain name registered with the Cognito User Pool and associated clients
+    Value: !Ref UserPoolCognitoDomain
+  CognitoUserPoolId:
+    Description: User Pool ID for managing users
+    Value: !Ref UserPool
+  CognitoUserPoolProviderUrl:
+    Description: URL for the cognito provider (Issuer attribute)
+    Value: !GetAtt UserPool.ProviderURL
