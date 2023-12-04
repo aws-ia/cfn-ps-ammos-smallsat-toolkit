@@ -1,0 +1,1 @@
+This QuickStart will work in all Regions that support the required underlying services. Additionally, the deployment is compatible with the aws-us-gov partition.
