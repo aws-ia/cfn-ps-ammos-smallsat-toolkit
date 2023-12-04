@@ -1,7 +1,9 @@
-// Edit this placeholder text as necessary to describe the deployment options.
+// Edit this placeholder text to accurately describe your architecture.
 
-This Partner Solution provides the following deployment option:
+This Quick Start provides two deployment options:
 
-* https://fwd.aws/p5Pxb?[Deploy {partner-product-short-name} into a new or existing VPC^]. This option builds a new AWS environment that consists of the VPC, subnets, NAT gateways, security groups, bastion hosts, and other infrastructure components. It then deploys {partner-product-short-name} into this new VPC, or 
-provisions {partner-product-short-name} in your existing AWS infrastructure.
+* *Deploy {partner-product-short-name} into a new VPC*. This option builds a new AWS environment consisting of the VPC, subnets, NAT gateways, security groups, bastion hosts, and other infrastructure components. It then deploys {partner-product-short-name} into this new VPC.
 
+* *Deploy {partner-product-short-name} into an existing VPC.* This option provisions {partner-product-short-name} in your existing AWS infrastructure.
+
+This Quick Start provides one template that covers both of these options. It also lets you configure Classless Inter-Domain Routing (CIDR) blocks, instance types, and {partner-product-short-name} settings, as discussed later in this guide.

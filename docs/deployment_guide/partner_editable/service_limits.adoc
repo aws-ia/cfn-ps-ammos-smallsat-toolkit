@@ -1,0 +1,25 @@
+// Replace the <n> in each row to specify the number of resources used in this deployment. Remove the rows for resources that aren’t used.
+
+|===
+|Resource |This deployment uses
+
+| VPCs | 1
+| Subnets | 6
+| Route tables | 2
+| Internet gateways | 1
+| NAT gateways | 1
+| Security groups | 5
+| AWS Identity and Access Management (IAM) roles | 5
+| Auto Scaling groups | 2
+| EC2 instances* | 3
+| Application Load Balancers | 1
+| Amazon Cognito user pools | 1
+| Amazon OpenSearch Service domains | 1
+| S3 buckets | 2
+| CloudWatch Logs log groups | 5
+| Route 53 records | 5
+| Kinesis Data Firehose delivery streams | 1
+| Lambda functions | 3
+|===
+
+[.small]#* During deployment, you can choose the AIT instance type to fit your workload. The default instance type, `m5.large`, contains enough compute and memory resources for most workloads, as suggested by the AIT development team. The best choice for your mission depends on expected telemetry throughput, level of message processing required, and latency requirements defined by the mission. We recommend 2–4 cores and 4–8 GiB of memory for the AIT instance.#
