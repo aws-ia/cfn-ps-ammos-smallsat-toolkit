@@ -3,4 +3,8 @@ RUN yum install -y yum-utils && yum-config-manager --add-repo https://cli.github
 RUN pip install taskcat yq jq awscli
 RUN pip3 install 'copier==8.3.0'
 RUN pip install 'cfn-lint==0.83.2'
+<<<<<<< before updating
 RUN pip install bump2version
+=======
+RUN pip install bump2version
+>>>>>>> after updating
